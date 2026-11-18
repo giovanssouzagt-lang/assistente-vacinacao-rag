@@ -31,6 +31,7 @@ python -m venv .venv
 pip install -r requirements.txt
 
 python ingestao.py              # lê o PDF e monta o banco vetorial
+python resposta.py "Recém-nascido com menos de 2 kg pode tomar BCG?"
 ```
 
 ## Avaliação da busca
@@ -59,9 +60,43 @@ Lições do processo:
 - **O gabarito também erra**: uma "falha" da busca era, na verdade, uma resposta que também
   estava nas páginas 200 e 203. Corrigi o gabarito, não a busca.
 
+## Avaliação das respostas
+
+Rodando `python avaliacao_respostas.py`, cada resposta do gabarito é classificada como
+**certa**, **recusa** ("não encontrei no manual") ou **errada**. Também há 4 perguntas
+armadilha, cujos assuntos não estão no manual (ex.: dose de dipirona), que precisam ser recusadas.
+
+Em saúde, uma resposta errada dita com confiança é pior que um "não sei". Por isso
+recusa e erro são contados separadamente.
+
+| Versão | Certas | Recusas | **Erradas** | Armadilhas | Tempo |
+|---|---|---|---|---|---|
+| qwen3:8b, prompt inicial | 8/12 | 0 | **4** | 4/4 | 1,7s |
+| qwen3:8b, prompt com regras | 9/12 | — | **3** | 4/4 | 2,2s |
+| qwen3:8b, modo "pensar" | 10/12 | — | **2** | 4/4 | 74s |
+| qwen3:14b | 11/12 | 0 | **1** | 4/4 | 12,3s |
+| **qwen3:8b + seção no contexto** ✅ | **10/12** | 2 | **0** | **4/4** | **1,3s** |
+
+**Decisão: qwen3:8b com o título da seção no contexto.** O 14b acerta uma pergunta a mais,
+mas dá **uma resposta perigosa** (diz que lactante com bebê de 4 meses pode tomar a vacina da
+febre amarela, o que o manual proíbe) e é 10x mais lento. O 8b tem zero respostas erradas.
+
+O que mais ajudou:
+- **Regras no prompt contra suposições**: "a ausência de proibição não é permissão" e atenção
+  a exceções ("exceto", "deve ser adiada").
+- **Título da seção junto de cada trecho**: o item "Internação hospitalar, exceto para pólio
+  oral" está numa lista de *falsas* contraindicações cujo título fica na página anterior.
+  Sem o título, a IA entendia o contrário. O título vai só para a IA, não para o embedding:
+  testei incluir e a busca vetorial piorou (11/12 → 10/12).
+
+Limitações conhecidas (as 2 recusas):
+- **Febre amarela e amamentação**: a busca não traz as páginas 200/203. Melhorar a busca é o próximo passo.
+- **Validade da VOPb descongelada**: a informação está numa nota de rodapé de tabela, e a extração
+  de tabelas do PDF ainda é frágil.
+
 ## Progresso
 
 - [x] Ingestão: leitura do PDF, limpeza de texto, chunking e embeddings
 - [x] Busca: comparação vetorial × BM25 × híbrida, com avaliação automática
-- [ ] Geração de respostas com citação de fonte
+- [x] Geração de respostas com citação de página e recusa quando não há resposta
 - [ ] API (FastAPI) e interface de chat

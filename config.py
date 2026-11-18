@@ -26,6 +26,10 @@ MODELO_EMBEDDING = os.getenv("MODELO_EMBEDDING", "bge-m3")
 # Modelo que gera as respostas (usado na etapa 4)
 MODELO_LLM = os.getenv("MODELO_LLM", "qwen3:8b")
 
+# Modo "pensar" do Qwen3: o modelo raciocina antes de responder.
+# Mais lento, mas lê melhor frases com exceções ("exceto para...").
+PENSAR = os.getenv("PENSAR", "false").lower() == "true"
+
 # Chunking: tamanho de cada pedaço (em caracteres) e quanto um pedaço
 # "repete" do anterior, para não cortar uma ideia no meio
 TAMANHO_CHUNK = int(os.getenv("TAMANHO_CHUNK", "1000"))

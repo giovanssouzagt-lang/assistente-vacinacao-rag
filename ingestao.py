@@ -70,21 +70,61 @@ def carregar_pdfs() -> list[Document]:
     return paginas
 
 
+# Títulos numerados do manual, ex.: "10.1.4.4 Falsas contraindicações".
+# O título termina onde começa a próxima frase (palavra maiúscula seguida
+# de minúsculas), ex.: "... Falsas contraindicações São exemplos de ...".
+TITULO_SECAO = re.compile(
+    r"(?<![\d.,])(\d{1,2}(?:\.\d{1,2}){1,4})\.?\s+"
+    r"([A-ZÀ-Ú][^.:;()\n]{2,90}?)"
+    r"(?=\s+[A-ZÀ-Ú▶][a-zà-ú]{2,}|\s*$)"
+)
+
+
 def dividir_em_chunks(paginas: list[Document]) -> list[Document]:
     """
-    Divide as páginas em pedaços menores.
+    Divide as páginas em pedaços menores, cada um com o título da sua seção.
 
     O RecursiveCharacterTextSplitter tenta cortar primeiro em parágrafos,
     depois em frases, depois em palavras, para não partir uma ideia ao meio.
     Cada chunk herda os metadados da página (fonte e número da página),
     o que permite citar a fonte na resposta.
+
+    CHUNKS COM CONTEXTO: um pedaço solto pode mudar de sentido sem o título
+    da seção. Ex.: "Internação hospitalar, exceto para pólio oral" está numa
+    lista de FALSAS contraindicações cujo título fica na página anterior.
+    Sem o título, a IA entendia o contrário. Por isso cada chunk guarda nos
+    metadados o título da seção em que está (inclusive se ela começou em uma
+    página anterior), e a IA recebe esse título junto com o trecho.
+
+    O título NÃO entra no texto do embedding: testei colocar, e a busca
+    vetorial piorou (11/12 -> 10/12), porque o título "puxava" o significado
+    do trecho para o tema geral da seção.
     """
     divisor = RecursiveCharacterTextSplitter(
         chunk_size=config.TAMANHO_CHUNK,
         chunk_overlap=config.SOBREPOSICAO_CHUNK,
         separators=["\n\n", ". ", "; ", " ", ""],
+        add_start_index=True,  # posição do chunk na página, para achar a seção
     )
-    return divisor.split_documents(paginas)
+    chunks = []
+    secao_atual = ""  # carrega a seção de uma página para a seguinte
+    for pagina in paginas:
+        titulos = [
+            (m.start(), f"{m.group(1)} {m.group(2).strip()}")
+            for m in TITULO_SECAO.finditer(pagina.page_content)
+        ]
+        for chunk in divisor.split_documents([pagina]):
+            inicio = chunk.metadata.pop("start_index")
+            # Seção = último título que aparece ANTES do fim deste chunk
+            fim = inicio + len(chunk.page_content)
+            anteriores = [t for pos, t in titulos if pos < fim]
+            secao = anteriores[-1] if anteriores else secao_atual
+            if secao:
+                chunk.metadata["secao"] = secao
+            chunks.append(chunk)
+        if titulos:
+            secao_atual = titulos[-1][1]
+    return chunks
 
 
 def main():
