@@ -30,3 +30,8 @@ MODELO_LLM = os.getenv("MODELO_LLM", "qwen3:8b")
 # "repete" do anterior, para não cortar uma ideia no meio
 TAMANHO_CHUNK = int(os.getenv("TAMANHO_CHUNK", "1000"))
 SOBREPOSICAO_CHUNK = int(os.getenv("SOBREPOSICAO_CHUNK", "200"))
+
+# Busca: quantos trechos entregar à IA. Escolhido pela avaliação
+# (avaliacao.py): busca vetorial com k=5 acertou 11/12; k=8 não melhorou
+# e só aumentaria o texto que a IA precisa ler.
+TOP_K = int(os.getenv("TOP_K", "5"))
