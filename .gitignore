@@ -1,0 +1,15 @@
+# Ambiente virtual do Python (cada pessoa recria o seu)
+.venv/
+
+# Banco vetorial é gerado pelo ingestao.py, não precisa ir pro GitHub
+banco_vetorial/
+
+# Configurações locais e chaves de API
+.env
+
+# Cache do Python
+__pycache__/
+*.pyc
+
+# Editor
+.vscode/

@@ -1,0 +1,10 @@
+langchain
+langchain-ollama
+langchain-chroma
+langchain-text-splitters
+chromadb
+pypdf
+fonttools
+fastapi
+uvicorn
+python-dotenv
