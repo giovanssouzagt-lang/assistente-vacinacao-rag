@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistente de Vacinação</title>
+<style>
+  :root {
+    --fundo: #f4f6f5;
+    --cartao: #ffffff;
+    --texto: #1c2321;
+    --suave: #5f6b67;
+    --borda: #dfe5e2;
+    --marca: #0f7b5f;
+    --marca-texto: #ffffff;
+    --marca-suave: #e3f2ed;
+    --aviso: #8a5a00;
+    --aviso-fundo: #fff5e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fundo: #121614;
+      --cartao: #1b211e;
+      --texto: #e6ebe8;
+      --suave: #9aa6a1;
+      --borda: #2c3531;
+      --marca: #3fbf95;
+      --marca-texto: #0b1411;
+      --marca-suave: #1d2e27;
+      --aviso: #f2c26b;
+      --aviso-fundo: #2e2617;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--fundo); color: var(--texto);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column; height: 100dvh;
+  }
+  header {
+    padding: 14px 16px; border-bottom: 1px solid var(--borda); background: var(--cartao);
+  }
+  header h1 { margin: 0; font-size: 1.05rem; }
+  header p { margin: 2px 0 0; font-size: .85rem; color: var(--suave); }
+  main { flex: 1; overflow-y: auto; padding: 16px; }
+  .conversa { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+  .boas-vindas { text-align: center; color: var(--suave); padding: 24px 0 8px; }
+  .sugestoes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
+  .sugestoes button {
+    border: 1px solid var(--borda); background: var(--cartao); color: var(--texto);
+    padding: 8px 12px; border-radius: 999px; font: inherit; font-size: .88rem; cursor: pointer;
+  }
+  .sugestoes button:hover { border-color: var(--marca); }
+
+  .msg { padding: 12px 14px; border-radius: 14px; max-width: 88%; white-space: pre-wrap; }
+  .msg.usuario { align-self: flex-end; background: var(--marca); color: var(--marca-texto); }
+  .msg.bot { align-self: flex-start; background: var(--cartao); border: 1px solid var(--borda); }
+  .msg.bot.sem-resposta { background: var(--aviso-fundo); color: var(--aviso); border-color: transparent; }
+  .msg.carregando { color: var(--suave); font-style: italic; }
+
+  details.fontes { margin-top: 10px; font-size: .85rem; white-space: normal; }
+  details.fontes summary { cursor: pointer; color: var(--marca); font-weight: 600; }
+  .fonte { margin-top: 8px; padding: 8px 10px; background: var(--marca-suave); border-radius: 8px; }
+  .fonte b { display: block; margin-bottom: 4px; }
+  .fonte span { color: var(--suave); }
+
+  form {
+    border-top: 1px solid var(--borda); background: var(--cartao); padding: 12px 16px;
+  }
+  .linha { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; }
+  input {
+    flex: 1; min-width: 0; padding: 12px 14px; border-radius: 10px; font: inherit;
+    border: 1px solid var(--borda); background: var(--fundo); color: var(--texto);
+  }
+  input:focus { outline: 2px solid var(--marca); border-color: transparent; }
+  form button {
+    padding: 0 18px; border: 0; border-radius: 10px; font: inherit; font-weight: 600;
+    background: var(--marca); color: var(--marca-texto); cursor: pointer;
+  }
+  form button:disabled { opacity: .5; cursor: wait; }
+  .aviso-rodape { max-width: 760px; margin: 8px auto 0; font-size: .75rem; color: var(--suave); text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>💉 Assistente de Vacinação</h1>
+  <p>Respostas baseadas no Manual de Normas e Procedimentos para Vacinação (MS, 2024)</p>
+</header>
+
+<main id="rolagem">
+  <div class="conversa" id="conversa">
+    <div class="boas-vindas" id="boas-vindas">
+      Pergunte algo sobre normas de vacinação. Toda resposta cita a página do manual.
+      <div class="sugestoes">
+        <button type="button">Recém-nascido com menos de 2 kg pode tomar BCG?</button>
+        <button type="button">Em qual temperatura devo manter as vacinas na geladeira?</button>
+        <button type="button">Quem tomou a tríplice viral pode doar sangue?</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<form id="form">
+  <div class="linha">
+    <input id="entrada" placeholder="Digite sua pergunta..." autocomplete="off" maxlength="500" required>
+    <button id="enviar">Enviar</button>
+  </div>
+  <p class="aviso-rodape">Ferramenta de apoio. Em caso de dúvida, consulte o manual e a equipe técnica.</p>
+</form>
+
+<script>
+  const conversa = document.getElementById("conversa");
+  const rolagem = document.getElementById("rolagem");
+  const form = document.getElementById("form");
+  const entrada = document.getElementById("entrada");
+  const enviar = document.getElementById("enviar");
+
+  function adicionar(classe, texto) {
+    const div = document.createElement("div");
+    div.className = "msg " + classe;
+    div.textContent = texto;
+    conversa.appendChild(div);
+    rolagem.scrollTop = rolagem.scrollHeight;
+    return div;
+  }
+
+  function mostrarFontes(div, fontes) {
+    if (!fontes.length) return;
+    const det = document.createElement("details");
+    det.className = "fontes";
+    const sum = document.createElement("summary");
+    sum.textContent = `Ver trechos consultados (${fontes.length})`;
+    det.appendChild(sum);
+    for (const f of fontes) {
+      const box = document.createElement("div");
+      box.className = "fonte";
+      const titulo = document.createElement("b");
+      titulo.textContent = `Página ${f.pagina}` + (f.secao ? ` · ${f.secao}` : "");
+      const trecho = document.createElement("span");
+      trecho.textContent = f.trecho.length > 400 ? f.trecho.slice(0, 400) + "…" : f.trecho;
+      box.append(titulo, trecho);
+      det.appendChild(box);
+    }
+    div.appendChild(det);
+  }
+
+  async function perguntar(texto) {
+    document.getElementById("boas-vindas")?.remove();
+    adicionar("usuario", texto);
+    const espera = adicionar("bot carregando", "Consultando o manual...");
+    enviar.disabled = true;
+    try {
+      const resp = await fetch("/perguntar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pergunta: texto }),
+      });
+      const dados = await resp.json();
+      if (!resp.ok) throw new Error(typeof dados.detail === "string" ? dados.detail : "Pergunta inválida.");
+      espera.className = "msg bot" + (dados.encontrou ? "" : " sem-resposta");
+      espera.textContent = dados.resposta;
+      mostrarFontes(espera, dados.fontes);
+    } catch (erro) {
+      espera.className = "msg bot sem-resposta";
+      espera.textContent = "Erro: " + erro.message;
+    } finally {
+      enviar.disabled = false;
+      entrada.focus();
+      rolagem.scrollTop = rolagem.scrollHeight;
+    }
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const texto = entrada.value.trim();
+    if (texto.length < 3 || enviar.disabled) return;
+    entrada.value = "";
+    perguntar(texto);
+  });
+
+  document.querySelectorAll(".sugestoes button").forEach((b) =>
+    b.addEventListener("click", () => perguntar(b.textContent))
+  );
+</script>
+</body>
+</html>

@@ -16,7 +16,8 @@ o sistema busca os trechos relevantes do manual e entrega à IA junto com a perg
 - **Ollama**: modelos rodando 100% local, na GPU (nenhum dado sai da máquina)
   - `bge-m3`: embeddings multilíngues
   - `qwen3:8b`: geração de respostas
-- **FastAPI**: API (em breve)
+- **FastAPI**: API REST com validação (Pydantic) e documentação automática
+- **HTML + JavaScript**: tela de chat sem dependências, com tema claro/escuro
 
 ## Como rodar
 
@@ -31,8 +32,38 @@ python -m venv .venv
 pip install -r requirements.txt
 
 python ingestao.py              # lê o PDF e monta o banco vetorial
-python resposta.py "Recém-nascido com menos de 2 kg pode tomar BCG?"
+uvicorn api:app                 # sobe a API e a tela de chat
 ```
+
+Abra **http://localhost:8000** para usar o chat, ou **http://localhost:8000/docs**
+para a documentação interativa da API.
+
+### API
+
+| Rota | O que faz |
+|---|---|
+| `GET /` | Tela de chat |
+| `GET /saude` | Verifica se o Ollama está no ar e se os modelos estão baixados |
+| `POST /perguntar` | Recebe `{"pergunta": "..."}` e devolve a resposta e as fontes |
+| `GET /docs` | Documentação interativa (Swagger), gerada pelo FastAPI |
+
+Exemplo de resposta de `POST /perguntar`:
+
+```json
+{
+  "resposta": "Não. A administração da vacina BCG deve ser adiada quando a criança apresentar peso inferior a 2 kg (pág. 179).",
+  "encontrou": true,
+  "fontes": [
+    { "pagina": 179, "secao": "12.2.1 Vacina BCG – BCG", "trecho": "..." }
+  ]
+}
+```
+
+Quando a resposta não está no manual, `encontrou` é `false` e `fontes` vem vazia.
+Perguntas vazias ou com mais de 500 caracteres são recusadas com erro 422.
+
+Também dá para testar pelo terminal, sem API:
+`python resposta.py "Recém-nascido com menos de 2 kg pode tomar BCG?"`
 
 ## Avaliação da busca
 
@@ -99,4 +130,4 @@ Limitações conhecidas (as 2 recusas):
 - [x] Ingestão: leitura do PDF, limpeza de texto, chunking e embeddings
 - [x] Busca: comparação vetorial × BM25 × híbrida, com avaliação automática
 - [x] Geração de respostas com citação de página e recusa quando não há resposta
-- [ ] API (FastAPI) e interface de chat
+- [x] API (FastAPI) e interface de chat
