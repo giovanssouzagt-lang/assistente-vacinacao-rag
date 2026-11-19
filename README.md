@@ -7,7 +7,17 @@ citando a página de onde tirou a informação.
 Usa **RAG (Retrieval-Augmented Generation)**: em vez de confiar na "memória" da IA,
 o sistema busca os trechos relevantes do manual e entrega à IA junto com a pergunta.
 
-> 🚧 Projeto em desenvolvimento.
+<p align="center">
+  <img src="docs/chat-claro.png" alt="Chat respondendo sobre a vacina BCG, com os trechos do manual consultados" width="68%">
+  &nbsp;
+  <img src="docs/chat-celular.png" alt="Chat no celular, incluindo a recusa de uma pergunta fora do manual" width="24%">
+</p>
+
+**Destaques**
+- 100% local: os modelos rodam na GPU da máquina e nenhum dado sai dela
+- Cita a página de cada informação e mostra os trechos consultados
+- Diz "não encontrei" em vez de inventar: 4/4 perguntas armadilha recusadas
+- Decisões tomadas com **avaliação automática**, não com achismo (ver abaixo)
 
 ## Stack
 
@@ -119,6 +129,13 @@ O que mais ajudou:
   oral" está numa lista de *falsas* contraindicações cujo título fica na página anterior.
   Sem o título, a IA entendia o contrário. O título vai só para a IA, não para o embedding:
   testei incluir e a busca vetorial piorou (11/12 → 10/12).
+
+**Uma limpeza "só visual" que quebrou respostas.** O PDF usa um caractere de controle
+invisível como marcador de lista (mais de mil vezes), que aparecia como "□" na tela.
+Ao limpá-lo na ingestão, a busca e duas respostas mudaram: uma delas passou a dizer que
+lactante com bebê de 4 meses pode tomar a vacina da febre amarela. O modelo de 8b é
+sensível a pequenas mudanças no contexto. A solução foi limpar **só na exibição** (API),
+sem mexer no texto que a IA lê. Sem a avaliação automática, essa regressão teria passado.
 
 Limitações conhecidas (as 2 recusas):
 - **Febre amarela e amamentação**: a busca não traz as páginas 200/203. Melhorar a busca é o próximo passo.

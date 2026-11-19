@@ -13,6 +13,7 @@ Rotas:
 Rode com:  uvicorn api:app --reload
 Depois abra:  http://localhost:8000
 """
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -26,6 +27,22 @@ from resposta import SEM_RESPOSTA, Assistente
 
 PASTA_STATIC = Path(__file__).parent / "static"
 assistente: Assistente | None = None
+
+# Marcadores de lista do PDF vêm como caracteres de controle invisíveis
+# (ex.: \x83), que aparecem como quadradinhos na tela.
+MARCADORES_PDF = re.compile(r"[\x80-\x9f\ue000-\uf8ff]")
+
+
+def texto_para_exibir(trecho: str) -> str:
+    """
+    Troca os marcadores do PDF por "•", APENAS para exibição.
+
+    A limpeza não é feita na ingestão de propósito: testei, e trocar esse
+    caractere no texto indexado virou duas respostas de "certas" para
+    "erradas" na avaliação. O modelo de 8b é sensível a pequenas mudanças
+    no contexto, então uma melhoria só visual não pode mexer no que a IA lê.
+    """
+    return MARCADORES_PDF.sub("•", trecho)
 
 
 @asynccontextmanager
@@ -106,7 +123,7 @@ def perguntar(entrada: Pergunta):
             Fonte(
                 pagina=d.metadata["pagina"],
                 secao=d.metadata.get("secao"),
-                trecho=d.page_content,
+                trecho=texto_para_exibir(d.page_content),
             )
             for d in r.trechos
         ] if encontrou else [],
